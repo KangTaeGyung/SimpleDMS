@@ -1,0 +1,110 @@
+plugins {
+	id 'org.springframework.boot' version '2.7.5'
+	id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+	//querydsl 추가
+	id "com.ewerk.gradle.plugins.querydsl" version "1.0.10"
+
+	id 'java'
+	id 'war'
+//	docker simple image make 라이브러리
+	id 'com.google.cloud.tools.jib' version '3.1.2'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '1.8'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	//    오라클 라이브러리( 19c )
+	implementation 'com.oracle.database.jdbc:ucp:19.14.0.0'
+	implementation 'com.oracle.database.security:oraclepki:19.14.0.0'
+	implementation 'com.oracle.database.security:osdt_cert:19.14.0.0'
+	implementation 'com.oracle.database.security:osdt_core:19.14.0.0'
+	//    logback , log4jdbc 설정
+	implementation 'org.bgee.log4jdbc-log4j2:log4jdbc-log4j2-jdbc4.1:1.16'
+	implementation 'ch.qos.logback:logback-classic:1.2.11'
+	implementation 'org.slf4j:slf4j-api:1.7.36'
+	implementation 'org.slf4j:jcl-over-slf4j:1.7.36'
+//    jpa 라이브러리
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+//    modelmapper 라이브러리
+	implementation group: 'org.modelmapper', name: 'modelmapper', version: '2.3.8'
+//querydsl 추가
+	implementation "com.querydsl:querydsl-jpa:5.0.0"
+	annotationProcessor "com.querydsl:querydsl-apt:5.0.0"
+//    lombok 라이브러리
+	compileOnly 'org.projectlombok:lombok'
+//    자동 재시작 라이브러리
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+//     oracle jdbc 드라이버 라이브러리
+	runtimeOnly 'com.oracle.database.jdbc:ojdbc8'
+	annotationProcessor 'org.projectlombok:lombok'
+//    WAS 서버 라이브러리(톰캣)
+	providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
+//    테스트 모듈 라이브러리
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+//querydsl 추가 시작
+def querydslDir = "$buildDir/generated/querydsl"
+
+querydsl {
+	jpa = true
+	querydslSourcesDir = querydslDir
+}
+
+sourceSets {
+	main.java.srcDir querydslDir
+}
+
+configurations {
+	querydsl.extendsFrom compileClasspath
+}
+
+compileQuerydsl {
+	options.annotationProcessorPath = configurations.querydsl
+}
+
+// ./gradlew jib 하면 도커 원격 저장소에 이미지 생성후 푸쉬함
+jib {
+    from {
+        image='openjdk:8-jdk-alpine'
+//		Mac M1 사용시
+        platforms {
+            platform {
+                architecture = "arm64"
+                os = "linux"
+            }
+        }
+    }
+    to {
+//		도커저장소/이미지명
+        image = "kangtaegyung/simpledms"
+        tags = ["1.0"]
+//		도커 인증정보
+		auth {
+			username = 'kangtaegyung'
+			password = 'skcc06981'
+		}
+    }
+    container {
+//		실행 시 옵션
+        jvmFlags = ["-Xms128m", "-Xmx128m"]
+		volumes = ["/tmp"]
+    }
+}
